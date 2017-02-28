@@ -15,7 +15,11 @@ public class GyroManager : MonoBehaviour {
     private bool inCircle;
     [Header("Play Area")]
     public Vector2 bounds;
+    [Header("Colors")]
+    public Color inActive;
+    public Color active;
     [Header("UI")]
+    public GameObject panelGameStart;
     public Text scoreUI;
     public Text timerUI;
     private int _score;
@@ -27,21 +31,25 @@ public class GyroManager : MonoBehaviour {
             scoreUI.text = _score.ToString();
         }
     }
-    private float _timer = 60;
+    private float _timer;
+    public float Timer;
     private float timer
     {
         get { return _timer; }
         set {
-            _timer = Mathf.Clamp(value, 0, 60);
+            _timer = Mathf.Clamp(value, 0, Mathf.Infinity);
             timerUI.text = _timer.ToString("F");
         }
     }
 
+    private bool isPlaying;
+    private bool onTitleScreen;
+
     private void Start()
     {
+        timer = Timer;
         body = GetComponent<Rigidbody2D>();
-        SpawnNewCircle();
-        StartCoroutine(SpawnTimer());
+        onTitleScreen = true;
     }
 
     private void Update()
@@ -50,19 +58,27 @@ public class GyroManager : MonoBehaviour {
         {
             SceneManager.LoadScene("Title");
         }
-        timer -= Time.deltaTime;
-        if (inCircle)
+        else if(Input.GetMouseButton(0) && !isPlaying && onTitleScreen)
         {
-            score += 1;
+            StartCoroutine(StartPlaying());
+            onTitleScreen = false;
         }
-        body.AddForce(new Vector2(Input.acceleration.x, Input.acceleration.y) * speed);
+
+        if (isPlaying)
+        {
+            timer -= Time.deltaTime;
+            if (inCircle) score += 1;
+            body.AddForce(new Vector2(Input.acceleration.x, Input.acceleration.y) * speed);
+        }
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.GetComponent<SpriteRenderer>() != null)
         {
-            other.GetComponent<SpriteRenderer>().color = Color.green;
+            SpriteRenderer sr = other.GetComponent<SpriteRenderer>();
+            sr.sortingOrder++;
+            sr.color = active;
             inCircle = true;
         }
     }
@@ -71,7 +87,9 @@ public class GyroManager : MonoBehaviour {
     {
         if (other.GetComponent<SpriteRenderer>() != null)
         {
-            other.GetComponent<SpriteRenderer>().color = Color.red;
+            SpriteRenderer sr = other.GetComponent<SpriteRenderer>();
+            sr.sortingOrder--;
+            sr.color = inActive;
             inCircle = false;
         }
     }
@@ -105,5 +123,18 @@ public class GyroManager : MonoBehaviour {
         yield return new WaitForSeconds(time);
         SpawnNewCircle();
         StartCoroutine(SpawnTimer());
+    }
+
+    private IEnumerator StartPlaying()
+    {
+        Animator anim = panelGameStart.GetComponent<Animator>();
+        anim.enabled = true;
+        yield return new WaitForSeconds(2);
+        isPlaying = true;
+        panelGameStart.SetActive(false);
+        panelGameStart.transform.rotation = Quaternion.identity;
+        SpawnNewCircle();
+        StartCoroutine(SpawnTimer());
+        yield return null;
     }
 }
