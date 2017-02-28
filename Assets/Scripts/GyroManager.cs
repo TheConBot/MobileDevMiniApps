@@ -13,8 +13,10 @@ public class GyroManager : MonoBehaviour {
     [Header("Circles")]
     public GameObject[] circles;
     private bool inCircle;
+    private int numberOfCirclesCurrentlyIn;
     [Header("Play Area")]
     public Vector2 bounds;
+    public float uiPadding;
     [Header("Colors")]
     public Color inActive;
     public Color active;
@@ -22,6 +24,16 @@ public class GyroManager : MonoBehaviour {
     public GameObject panelGameStart;
     public Text scoreUI;
     public Text timerUI;
+    private int _thisScore;
+    private int thisScore
+    {
+        get { return _thisScore; }
+        set
+        {
+            _thisScore = Mathf.Clamp(value, 0, 9999999);
+            //scoreUI.text = _score.ToString();
+        }
+    }
     private int _score;
     private int score
     {
@@ -29,6 +41,16 @@ public class GyroManager : MonoBehaviour {
         set {
             _score = Mathf.Clamp(value, 0, 9999999);
             scoreUI.text = _score.ToString();
+        }
+    }
+    private int _combo;
+    private int combo
+    {
+        get { return _combo; }
+        set
+        {
+            _combo = Mathf.Clamp(value, 1, 4);
+            //scoreUI.text = _score.ToString();
         }
     }
     private float _timer;
@@ -42,14 +64,19 @@ public class GyroManager : MonoBehaviour {
         }
     }
 
-    private bool isPlaying;
-    private bool onTitleScreen;
+    private enum CurrentState
+    {
+        TitleScreen,
+        StartingGame,
+        PlayingGame,
+        EndingGame
+    }
+    private CurrentState currentState;
 
     private void Start()
     {
-        timer = Timer;
         body = GetComponent<Rigidbody2D>();
-        onTitleScreen = true;
+        currentState = CurrentState.TitleScreen;
     }
 
     private void Update()
@@ -58,17 +85,39 @@ public class GyroManager : MonoBehaviour {
         {
             SceneManager.LoadScene("Title");
         }
-        else if(Input.GetMouseButton(0) && !isPlaying && onTitleScreen)
+        else if(currentState == CurrentState.TitleScreen)
         {
-            StartCoroutine(StartPlaying());
-            onTitleScreen = false;
+            if(Input.GetMouseButtonDown(0)) StartCoroutine(StartPlaying());
         }
-
-        if (isPlaying)
+        else if (currentState == CurrentState.PlayingGame)
         {
             timer -= Time.deltaTime;
-            if (inCircle) score += 1;
+            if (numberOfCirclesCurrentlyIn > 0) {
+                thisScore += 1;
+                combo = score % 100;
+                score += 1 * combo;
+                scoreUI.color = active;
+            }
+            else
+            {
+                scoreUI.color = inActive;
+            }
             body.AddForce(new Vector2(Input.acceleration.x, Input.acceleration.y) * speed);
+
+            if(timer == 0)
+            {
+                currentState = CurrentState.EndingGame;
+            }
+        }
+        else if(currentState == CurrentState.EndingGame)
+        {
+            gameObject.transform.position = Vector3.MoveTowards(gameObject.transform.position, Vector3.zero, Time.deltaTime * 2.5f);
+            if(gameObject.transform.position == Vector3.zero && AllCirclesInActive())
+            {
+                panelGameStart.SetActive(true);
+                score = 0;
+                currentState = CurrentState.TitleScreen;
+            }
         }
     }
 
@@ -76,10 +125,10 @@ public class GyroManager : MonoBehaviour {
     {
         if (other.GetComponent<SpriteRenderer>() != null)
         {
+            numberOfCirclesCurrentlyIn++;
             SpriteRenderer sr = other.GetComponent<SpriteRenderer>();
             sr.sortingOrder++;
             sr.color = active;
-            inCircle = true;
         }
     }
 
@@ -87,10 +136,10 @@ public class GyroManager : MonoBehaviour {
     {
         if (other.GetComponent<SpriteRenderer>() != null)
         {
+            numberOfCirclesCurrentlyIn--;
             SpriteRenderer sr = other.GetComponent<SpriteRenderer>();
             sr.sortingOrder--;
             sr.color = inActive;
-            inCircle = false;
         }
     }
 
@@ -106,13 +155,25 @@ public class GyroManager : MonoBehaviour {
         return -1;
     }
 
+    private bool AllCirclesInActive()
+    {
+        for (int i = 0; i < circles.Length; i++)
+        {
+            if (circles[i].activeSelf)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void SpawnNewCircle()
     {
         if (timer == 0) return;
         int circleIndex = FindAvailableCircle();
         if (circleIndex == -1) return;
         float x = Random.Range(-bounds.x, bounds.x);
-        float y = Random.Range(-bounds.y, bounds.y);
+        float y = Random.Range(-bounds.y, bounds.y - uiPadding);
         circles[circleIndex].SetActive(true);
         circles[circleIndex].transform.position = new Vector2(x, y);
     }
@@ -127,10 +188,13 @@ public class GyroManager : MonoBehaviour {
 
     private IEnumerator StartPlaying()
     {
+        currentState = CurrentState.StartingGame;
+        timer = Timer;
         Animator anim = panelGameStart.GetComponent<Animator>();
         anim.enabled = true;
         yield return new WaitForSeconds(2);
-        isPlaying = true;
+        currentState = CurrentState.PlayingGame;
+        anim.enabled = false;
         panelGameStart.SetActive(false);
         panelGameStart.transform.rotation = Quaternion.identity;
         SpawnNewCircle();

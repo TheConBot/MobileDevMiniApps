@@ -11,7 +11,7 @@ public class ScaleCircle : MonoBehaviour {
 
     private void Awake()
     {
-        manager = GameObject.Find("Player").GetComponent<GyroManager>();
+        manager = GameObject.FindGameObjectWithTag("Player").GetComponent<GyroManager>();
         startingScale = transform.localScale;
         gameObject.SetActive(false);
     }
