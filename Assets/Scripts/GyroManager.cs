@@ -95,7 +95,7 @@ public class GyroManager : MonoBehaviour {
             if (numberOfCirclesCurrentlyIn > 0) {
                 thisScore += 1;
                 combo = score % 100;
-                score += 1 * combo;
+                score += 1 * (combo + numberOfCirclesCurrentlyIn);
                 scoreUI.color = active;
             }
             else

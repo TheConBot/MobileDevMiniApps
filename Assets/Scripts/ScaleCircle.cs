@@ -7,11 +7,15 @@ public class ScaleCircle : MonoBehaviour {
     public float shrinkSpeed;
     private Vector3 startingScale;
     private GyroManager manager;
+    private Collider2D collider;
+    private SpriteRenderer sprite;
     private bool settingUp;
 
     private void Awake()
     {
         manager = GameObject.FindGameObjectWithTag("Player").GetComponent<GyroManager>();
+        collider = GetComponent<Collider2D>();
+        sprite = GetComponent<SpriteRenderer>();
         startingScale = transform.localScale;
         gameObject.SetActive(false);
     }
@@ -24,6 +28,9 @@ public class ScaleCircle : MonoBehaviour {
 	
 	private IEnumerator ScaleDown()
     {
+        collider.enabled = false;
+        yield return new WaitForSeconds(1);
+        collider.enabled = true;
         while (true)
         {
             transform.localScale = new Vector2(transform.localScale.x - shrinkSpeed, transform.localScale.y - shrinkSpeed);
